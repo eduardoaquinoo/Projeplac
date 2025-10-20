@@ -1,4 +1,4 @@
-import { db, ProjectStatus } from "./db";
+import { db, ProjectStatus } from "./db.js";
 
 interface SeedProject {
   title: string;
