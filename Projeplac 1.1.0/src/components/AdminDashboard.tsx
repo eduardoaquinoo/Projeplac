@@ -19,9 +19,9 @@ import {
   Star,
   Heart
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import projeplacLogo from "figma:asset/b3251cf511c1d97994f8e9f326025eaf4de9bd06.png";
-import { projectId, publicAnonKey } from "../utils/supabase/info";
+import { api, Project, ProjectStatus, StatsResponse } from "../utils/api";
 import { getManualFeatured, toggleManualFeatured, isManualFeatured, getLikesCount } from "../utils/likesManager";
 
 interface AdminDashboardProps {
@@ -29,89 +29,72 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type ProjectStatus = "Em Andamento" | "Publicado" | "Em Revisão";
-
-interface Project {
-  id: number;
-  title: string;
-  description: string;
-  author: string;
-  course: string;
-  status: ProjectStatus;
-  date: string;
-  views: number;
-}
+const formatDate = (value: string | null | undefined) => {
+  if (!value) return "Data não informada";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+};
 
 export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 1,
-      title: "Sistema de Gestão Acadêmica",
-      description: "Plataforma web para gerenciamento de notas e frequência dos alunos",
-      author: "João Silva",
-      course: "Engenharia de Software",
-      status: "Em Revisão",
-      date: "2025-10-10",
-      views: 124
-    },
-    {
-      id: 2,
-      title: "App de Mobilidade Urbana",
-      description: "Aplicativo mobile para otimização de rotas de transporte público",
-      author: "Maria Santos",
-      course: "Análise e Desenvolvimento de Sistemas",
-      status: "Publicado",
-      date: "2025-10-08",
-      views: 234
-    },
-    {
-      id: 3,
-      title: "Chatbot de Atendimento",
-      description: "Sistema de atendimento automatizado utilizando IA",
-      author: "Pedro Oliveira",
-      course: "Ciência da Computação",
-      status: "Em Andamento",
-      date: "2025-10-12",
-      views: 89
-    },
-    {
-      id: 4,
-      title: "Dashboard de Analytics",
-      description: "Painel de visualização de dados e métricas em tempo real",
-      author: "Ana Costa",
-      course: "Sistemas de Informação",
-      status: "Em Revisão",
-      date: "2025-10-11",
-      views: 156
-    },
-    {
-      id: 5,
-      title: "Sistema de Reserva de Salas",
-      description: "Plataforma para agendamento de espaços acadêmicos",
-      author: "Carlos Lima",
-      course: "Engenharia de Software",
-      status: "Publicado",
-      date: "2025-10-09",
-      views: 198
-    },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [statsData, setStatsData] = useState<StatsResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [updatingProjectId, setUpdatingProjectId] = useState<number | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCourse, setFilterCourse] = useState<string>("all");
   const [featuredProjects, setFeaturedProjects] = useState<number[]>([]);
   const [projectLikes, setProjectLikes] = useState<{ [key: number]: number }>({});
+  const courseOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(projects.map((project) => project.course).filter(Boolean)),
+      ) as string[],
+    [projects],
+  );
+
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const [projectsResponse, statsResponse] = await Promise.all([
+        api.listProjects(),
+        api.getStats(),
+      ]);
+      setProjects(projectsResponse);
+      setStatsData(statsResponse);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível carregar os projetos.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    loadDashboardData();
     setFeaturedProjects(getManualFeatured());
-    
-    // Carrega contagem de likes
+  }, [loadDashboardData]);
+
+  useEffect(() => {
     const likes: { [key: number]: number } = {};
-    projects.forEach(p => {
-      likes[p.id] = getLikesCount(p.id);
+    projects.forEach((project) => {
+      likes[project.id] = getLikesCount(project.id);
     });
     setProjectLikes(likes);
-  }, []);
+  }, [projects]);
 
   const handleToggleFeatured = (projectId: number) => {
     const isFeatured = toggleManualFeatured(projectId);
@@ -122,31 +105,27 @@ export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
     }
   };
 
-  const handleStatusChange = async (projectId: number, newStatus: ProjectStatus) => {
-    try {
-      // Atualiza o status no estado local
-      setProjects(prevProjects =>
-        prevProjects.map(project =>
-          project.id === projectId ? { ...project, status: newStatus } : project
-        )
-      );
+  const handleStatusChange = async (
+    projectId: number,
+    newStatus: ProjectStatus,
+  ) => {
+    const currentProject = projects.find((project) => project.id === projectId);
+    if (!currentProject || currentProject.status === newStatus) {
+      return;
+    }
 
-      // Aqui você pode fazer uma chamada à API para salvar no backend
-      console.log(`Status do projeto ${projectId} alterado para ${newStatus}`);
-      
-      // Exemplo de chamada ao backend (descomente quando necessário)
-      /*
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-0317df7d/projects/${projectId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      */
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+    try {
+      setUpdatingProjectId(projectId);
+      const updatedProject = await api.updateProjectStatus(projectId, newStatus);
+      setProjects((prevProjects) =>
+        prevProjects.map((project) =>
+          project.id === projectId ? updatedProject : project,
+        ),
+      );
+    } catch (updateError) {
+      console.error("Erro ao atualizar status:", updateError);
+    } finally {
+      setUpdatingProjectId(null);
     }
   };
 
@@ -178,21 +157,37 @@ export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
     );
   };
 
-  const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === "all" || project.status === filterStatus;
-    const matchesCourse = filterCourse === "all" || project.course === filterCourse;
-    
+  const filteredProjects = projects.filter((project) => {
+    const searchable = [
+      project.title,
+      project.summary,
+      project.description,
+      project.author,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch = searchable.includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      filterStatus === "all" || project.status === filterStatus;
+    const matchesCourse =
+      filterCourse === "all" || project.course === filterCourse;
+
     return matchesSearch && matchesStatus && matchesCourse;
   });
 
   const stats = {
-    total: projects.length,
-    publicado: projects.filter(p => p.status === "Publicado").length,
-    emRevisao: projects.filter(p => p.status === "Em Revisão").length,
-    emAndamento: projects.filter(p => p.status === "Em Andamento").length,
+    total: statsData?.summary.total ?? projects.length,
+    publicado:
+      statsData?.summary.published ??
+      projects.filter((p) => p.status === "Publicado").length,
+    emRevisao:
+      statsData?.summary.inReview ??
+      projects.filter((p) => p.status === "Em Revisão").length,
+    emAndamento:
+      statsData?.summary.inProgress ??
+      projects.filter((p) => p.status === "Em Andamento").length,
   };
 
   const handleLogoutClick = () => {
@@ -346,10 +341,11 @@ export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Cursos</SelectItem>
-                  <SelectItem value="Engenharia de Software">Engenharia de Software</SelectItem>
-                  <SelectItem value="Análise e Desenvolvimento de Sistemas">Análise e Desenvolvimento de Sistemas</SelectItem>
-                  <SelectItem value="Ciência da Computação">Ciência da Computação</SelectItem>
-                  <SelectItem value="Sistemas de Informação">Sistemas de Informação</SelectItem>
+                  {courseOptions.map((course) => (
+                    <SelectItem key={course} value={course}>
+                      {course}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -376,37 +372,51 @@ export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
                   Revise e altere o status dos projetos cadastrados na plataforma
                 </CardDescription>
               </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredProjects.length === 0 ? (
-                <div className="text-center py-12">
-                  <FolderKanban className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Nenhum projeto encontrado com os filtros aplicados</p>
-                </div>
-              ) : (
-                filteredProjects.map((project) => (
-                  <Card key={project.id} className="border border-border">
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                        {/* Informações do Projeto */}
-                        <div className="flex-1">
+              <CardContent>
+                <div className="space-y-4">
+                  {isLoading ? (
+                    <div className="text-center py-12 text-muted-foreground space-y-4">
+                      <div className="animate-spin h-10 w-10 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+                      Carregando projetos...
+                    </div>
+                  ) : error ? (
+                    <div className="text-center py-12 space-y-4">
+                      <p className="text-muted-foreground">{error}</p>
+                      <Button variant="outline" onClick={loadDashboardData}>
+                        Tentar novamente
+                      </Button>
+                    </div>
+                  ) : filteredProjects.length === 0 ? (
+                    <div className="text-center py-12">
+                      <FolderKanban className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Nenhum projeto encontrado com os filtros aplicados
+                      </p>
+                    </div>
+                  ) : (
+                    filteredProjects.map((project) => (
+                      <Card key={project.id} className="border border-border">
+                        <CardContent className="pt-6">
+                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                            {/* Informações do Projeto */}
+                            <div className="flex-1">
                           <div className="flex items-start gap-3">
                             <div className="flex-1">
                               <h3 className="font-semibold text-foreground mb-1">
                                 {project.title}
                               </h3>
                               <p className="text-sm text-muted-foreground mb-2">
-                                {project.description}
+                              {project.summary ?? project.description}
                               </p>
                               <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <Users className="h-3 w-3" />
-                                  {project.author}
+                                  {project.author ?? "Autor não informado"}
                                 </span>
                                 <span>•</span>
-                                <span>{project.course}</span>
+                                <span>{project.course ?? "Curso não informado"}</span>
                                 <span>•</span>
-                                <span>{new Date(project.date).toLocaleDateString('pt-BR')}</span>
+                                <span>{formatDate(project.createdAt)}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
                                   <Eye className="h-3 w-3" />
@@ -426,9 +436,14 @@ export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
                           {/* Seletor de Status */}
                           <Select
                             value={project.status}
-                            onValueChange={(value) => handleStatusChange(project.id, value as ProjectStatus)}
+                            onValueChange={(value) =>
+                              handleStatusChange(project.id, value as ProjectStatus)
+                            }
                           >
-                            <SelectTrigger className="w-full md:w-48">
+                            <SelectTrigger
+                              className="w-full md:w-48"
+                              disabled={updatingProjectId === project.id}
+                            >
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -454,13 +469,13 @@ export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
                           </Select>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
         </TabsContent>
 
         {/* Tab: Destaques */}
@@ -491,6 +506,7 @@ export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
                 <div className="space-y-3">
                   <h4 className="font-semibold text-sm">Projetos Disponíveis (Ordenados por Curtidas)</h4>
                   {projects
+                    .slice()
                     .sort((a, b) => (projectLikes[b.id] || 0) - (projectLikes[a.id] || 0))
                     .map((project) => {
                       const isFeatured = featuredProjects.includes(project.id);
@@ -514,12 +530,12 @@ export function AdminDashboard({ onBack, onLogout }: AdminDashboardProps) {
                                   )}
                                 </div>
                                 <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
-                                  {project.description}
+                                  {project.summary ?? project.description}
                                 </p>
                                 <div className="flex items-center flex-wrap gap-3 text-xs text-muted-foreground">
-                                  <span>{project.author}</span>
+                                  <span>{project.author ?? "Autor não informado"}</span>
                                   <span>•</span>
-                                  <span>{project.course}</span>
+                                  <span>{project.course ?? "Curso não informado"}</span>
                                   <span>•</span>
                                   <div className="flex items-center gap-1">
                                     <Heart className={`h-3 w-3 ${likes > 0 ? 'text-destructive fill-current' : ''}`} />

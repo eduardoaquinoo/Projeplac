@@ -6,9 +6,9 @@ import { Textarea } from "./ui/textarea";
 import { RichTextEditor } from "./RichTextEditor";
 import { Badge } from "./ui/badge";
 import { ProfileIcon } from "./ProfileIcon";
-import { ArrowLeft, Save, FileText, Youtube, Github, Users, Briefcase, X, Plus, UserPlus, Image as ImageIcon, Upload, Tag } from "lucide-react";
+import { ArrowLeft, Save, FileText, Youtube, Github, Users, X, Plus, Image as ImageIcon, Upload, Tag } from "lucide-react";
 import { useState } from "react";
-import projeplacLogo from "figma:asset/b3251cf511c1d97994f8e9f326025eaf4de9bd06.png";
+import { api } from "../utils/api";
 
 // Tags pré-definidas organizadas por categoria
 const PREDEFINED_TAGS = {
@@ -23,30 +23,46 @@ const PREDEFINED_TAGS = {
   "Outros": ["API", "REST", "GraphQL", "Microservices", "Agile", "Scrum", "UX/UI", "Testes", "Performance"]
 };
 
+const INITIAL_FORM_STATE = {
+  title: "",
+  summary: "",
+  description: "",
+  creationDate: "",
+  projectLink: "",
+  youtubeLink: "",
+  githubLink: "",
+  professorName: "",
+  members: [] as string[],
+  thumbnailImage: "",
+  screenshots: [] as string[],
+  tags: [] as string[],
+};
+
 interface CreateProjectProps {
   onBack: () => void;
 }
 
 export function CreateProject({ onBack }: CreateProjectProps) {
-  const [formData, setFormData] = useState({
-    title: "",
-    summary: "",
-    description: "",
-    creationDate: "",
-    projectLink: "",
-    youtubeLink: "",
-    githubLink: "",
-    professorName: "",
-    members: [] as string[],
-    thumbnailImage: "",
-    screenshots: [] as string[],
-    tags: [] as string[]
-  });
+  const [formData, setFormData] = useState({ ...INITIAL_FORM_STATE });
 
   const [newMemberName, setNewMemberName] = useState("");
   const [thumbnailPreview, setThumbnailPreview] = useState<string>("");
   const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const resetForm = () => {
+    setFormData({
+      ...INITIAL_FORM_STATE,
+      members: [],
+      screenshots: [],
+      tags: [],
+    });
+    setThumbnailPreview("");
+    setScreenshotPreviews([]);
+    setCustomTag("");
+  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -150,11 +166,59 @@ export function CreateProject({ onBack }: CreateProjectProps) {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aqui seria onde enviaria os dados para o backend
-    console.log("Dados do projeto:", formData);
-    alert("Projeto criado com sucesso! (Esta é uma simulação)");
+    setSubmitMessage(null);
+
+    if (!formData.title.trim()) {
+      setSubmitMessage({
+        type: "error",
+        text: "Informe um título para o projeto.",
+      });
+      return;
+    }
+
+    if (!formData.summary.trim()) {
+      setSubmitMessage({
+        type: "error",
+        text: "Descreva um resumo para o projeto.",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await api.createProject({
+        title: formData.title.trim(),
+        summary: formData.summary.trim(),
+        description: formData.description,
+        professor: formData.professorName.trim() || undefined,
+        projectUrl: formData.projectLink.trim() || undefined,
+        youtubeUrl: formData.youtubeLink.trim() || undefined,
+        githubUrl: formData.githubLink.trim() || undefined,
+        thumbnail: formData.thumbnailImage || undefined,
+        tags: formData.tags,
+        members: formData.members.map((name) => ({
+          name,
+        })),
+      });
+
+      setSubmitMessage({
+        type: "success",
+        text: "Projeto cadastrado com sucesso! Ele aparecerá na listagem assim que for publicado.",
+      });
+      resetForm();
+    } catch (err) {
+      setSubmitMessage({
+        type: "error",
+        text:
+          err instanceof Error
+            ? err.message
+            : "Não foi possível salvar o projeto. Tente novamente.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -644,10 +708,20 @@ export function CreateProject({ onBack }: CreateProjectProps) {
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 <Button
                   type="submit"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center space-x-2 flex-1"
+                  disabled={isSubmitting}
+                  className="bg-primary hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed text-primary-foreground flex items-center justify-center space-x-2 flex-1"
                 >
-                  <Save className="h-4 w-4" />
-                  <span>Publicar Projeto</span>
+                  {isSubmitting ? (
+                    <>
+                      <span className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                      <span>Publicando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>Publicar Projeto</span>
+                    </>
+                  )}
                 </Button>
                 <Button
                   type="button"
@@ -658,6 +732,13 @@ export function CreateProject({ onBack }: CreateProjectProps) {
                   Cancelar
                 </Button>
               </div>
+              {submitMessage && (
+                <p
+                  className={`text-sm ${submitMessage.type === "success" ? "text-green-600" : "text-red-600"}`}
+                >
+                  {submitMessage.text}
+                </p>
+              )}
             </form>
           </CardContent>
         </Card>

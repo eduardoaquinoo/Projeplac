@@ -33,15 +33,27 @@ Dentro de `Projeplac 1.1.0/src`, os principais diretórios são:
    ```bash
    cd "Projeplac 1.1.0"
    ```
-3. Instale as dependências:
+3. Instale as dependências do frontend:
    ```bash
    npm install
    ```
-4. Inicie o servidor de desenvolvimento:
+4. Instale as dependências do backend e popule o banco:
    ```bash
-   npm run dev
+   cd api
+   npm install
+   npm run seed
+   cd ..
    ```
-5. Abra o navegador em `http://localhost:5173` (porta padrão do Vite). O hot reload ficará ativo enquanto o comando `npm run dev` estiver rodando.
+5. Inicie o servidor de desenvolvimento (frontend e API) em terminais separados ou use o script agregado:
+   ```bash
+   # duas abas/terminais
+   npm run dev        # frontend (porta 5173)
+   npm run dev:api    # backend (porta 3333)
+
+   # ou com um único comando
+   npm run dev:full
+   ```
+6. Abra o navegador em `http://localhost:5173`. O hot reload ficará ativo enquanto os comandos estiverem rodando.
 
 ### Variáveis e integrações
 
@@ -52,8 +64,34 @@ Dentro de `Projeplac 1.1.0/src`, os principais diretórios são:
 
 Dentro de `Projeplac 1.1.0`:
 
-- `npm run dev` – inicia o servidor de desenvolvimento.
+- `npm run dev` – inicia somente o frontend.
+- `npm run dev:api` – inicia o backend em `api/`.
+- `npm run dev:full` – executa frontend e backend em paralelo.
 - `npm run build` – gera a build de produção em `dist/`.
+
+### Somente frontend (prototipagem rápida)
+
+Se quiser apenas subir o frontend atual sem o backend:
+
+```bash
+cd "Projeplac 1.1.0"
+npm install
+npm run dev
+```
+
+O app ficará disponível em `http://localhost:5173`.
+
+### Frontend legado (`paginaInicialFront/`)
+
+Para executar o protótipo exportado do Figma:
+
+```bash
+cd paginaInicialFront
+npm install
+npm run dev
+```
+
+Abra `http://localhost:5173` em outra aba para visualizar essa versão.
 
 ## Próximos passos sugeridos
 

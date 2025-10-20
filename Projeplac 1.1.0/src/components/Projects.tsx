@@ -20,167 +20,75 @@ import {
   Youtube,
   Github
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import projeplacLogo from "figma:asset/b3251cf511c1d97994f8e9f326025eaf4de9bd06.png";
+import { api, Project, ProjectStatus, StatsResponse } from "../utils/api";
 
 interface ProjectsProps {
   onBack: () => void;
   onNavigateToProjectDetails?: (projectId: number) => void;
 }
 
-const categories = [
+const CATEGORY_LIBRARY: Record<
+  string,
   {
-    id: 1,
-    name: "Engenharia de Software",
-    icon: Code,
-    count: 12,
-    color: "bg-primary",
-    description: "Desenvolvimento, Arquitetura, Metodologias Ágeis"
-  },
-  {
-    id: 2,
-    name: "Análise e Desenvolvimento de Sistemas",
-    icon: Database,
-    count: 8,
-    color: "bg-secondary",
-    description: "Análise de Requisitos, Modelagem, Desenvolvimento"
-  },
-  {
-    id: 3,
-    name: "Ciência da Computação",
-    icon: Computer,
-    count: 15,
-    color: "bg-primary",
-    description: "Algoritmos, Estruturas de Dados, Inteligência Artificial"
-  },
-  {
-    id: 4,
-    name: "Sistemas de Informação",
-    icon: Network,
-    count: 6,
-    color: "bg-secondary",
-    description: "Gestão de TI, Business Intelligence, ERP"
+    icon: typeof Code;
+    color: string;
+    description: string;
   }
+> = {
+  "Engenharia de Software": {
+    icon: Code,
+    color: "bg-primary",
+    description: "Desenvolvimento, Arquitetura, Metodologias Ágeis",
+  },
+  "Análise e Desenvolvimento de Sistemas": {
+    icon: Database,
+    color: "bg-secondary",
+    description: "Análise de Requisitos, Modelagem, Desenvolvimento",
+  },
+  "Ciência da Computação": {
+    icon: Computer,
+    color: "bg-primary",
+    description: "Algoritmos, Estruturas de Dados, Inteligência Artificial",
+  },
+  "Sistemas de Informação": {
+    icon: Network,
+    color: "bg-secondary",
+    description: "Gestão de TI, Business Intelligence, ERP",
+  },
+};
+
+const STATUS_OPTIONS: ProjectStatus[] = [
+  "Em Andamento",
+  "Publicado",
+  "Em Revisão",
 ];
 
-const projects = [
-  {
-    id: 1,
-    title: "Sistema de Gestão Acadêmica",
-    description: "Plataforma web para gerenciamento de alunos, professores e disciplinas com interface moderna e responsiva.",
-    category: "Engenharia de Software",
-    course: "Engenharia de Software",
-    author: "João Silva",
-    professor: "Prof. Dr. Maria Santos",
-    semester: "8º Semestre",
-    shift: "Noturno",
-    class: "ES-2024-2",
-    date: "Dezembro 2024",
-    status: "Concluído",
-    tags: ["React", "Node.js", "PostgreSQL"],
-    projectLink: "https://github.com/joao/sistema-academico",
-    youtubeLink: "https://youtube.com/watch?v=exemplo1",
-    githubLink: "https://github.com/joao/sistema-academico",
-    image: "https://images.unsplash.com/photo-1636034890787-84c842228065?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhY2FkZW1pYyUyMG1hbmFnZW1lbnQlMjBzeXN0ZW0lMjBkYXNoYm9hcmR8ZW58MXx8fHwxNzU4MzMyNjc1fDA&ixlib=rb-4.1.0&q=80&w=400&h=200&fit=crop"
-  },
-  {
-    id: 2,
-    title: "App Mobile para Controle Financeiro",
-    description: "Aplicativo React Native para controle de finanças pessoais com gráficos e relatórios detalhados.",
-    category: "Análise e Desenvolvimento de Sistemas",
-    course: "Análise e Desenvolvimento de Sistemas",
-    author: "Ana Costa",
-    professor: "Prof. Carlos Lima",
-    semester: "6º Semestre",
-    shift: "Matutino",
-    class: "ADS-2024-1",
-    date: "Novembro 2024",
-    status: "Em Andamento",
-    tags: ["React Native", "Firebase", "Charts"],
-    projectLink: "https://github.com/ana/finance-app",
-    youtubeLink: "https://youtube.com/watch?v=exemplo2",
-    githubLink: "https://github.com/ana/finance-app",
-    image: "https://images.unsplash.com/photo-1613442301287-4fa478efd9ca?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2JpbGUlMjBmaW5hbmNlJTIwYXBwJTIwaW50ZXJmYWNlfGVufDF8fHx8MTc1ODMzMjY3OHww&ixlib=rb-4.1.0&q=80&w=400&h=200&fit=crop"
-  },
-  {
-    id: 3,
-    title: "IA para Reconhecimento de Padrões",
-    description: "Algoritmo de machine learning para reconhecimento de padrões em imagens médicas usando TensorFlow.",
-    category: "Ciência da Computação",
-    course: "Ciência da Computação",
-    author: "Pedro Oliveira",
-    professor: "Prof. Dra. Lucia Pereira",
-    semester: "7º Semestre",
-    shift: "Vespertino",
-    class: "CC-2024-2",
-    date: "Janeiro 2025",
-    status: "Em Revisão",
-    tags: ["Python", "TensorFlow", "OpenCV"],
-    projectLink: "https://github.com/pedro/ia-padroes",
-    youtubeLink: "https://youtube.com/watch?v=exemplo3",
-    githubLink: "https://github.com/pedro/ia-padroes",
-    image: "https://images.unsplash.com/photo-1655393001768-d946c97d6fd1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlJTIwbWVkaWNhbCUyMGltYWdpbmd8ZW58MXx8fHwxNzU4MzMyNjgxfDA&ixlib=rb-4.1.0&q=80&w=400&h=200&fit=crop"
-  },
-  {
-    id: 4,
-    title: "Sistema ERP para PMEs",
-    description: "Solução completa de gestão empresarial para pequenas e médias empresas com módulos integrados.",
-    category: "Sistemas de Informação",
-    course: "Sistemas de Informação",
-    author: "Mariana Santos",
-    professor: "Prof. Roberto Oliveira",
-    semester: "8º Semestre",
-    shift: "Noturno",
-    class: "SI-2024-2",
-    date: "Dezembro 2024",
-    status: "Publicado",
-    tags: ["Java", "Spring", "MySQL"],
-    projectLink: "https://github.com/mariana/erp-pme",
-    youtubeLink: "https://youtube.com/watch?v=exemplo4",
-    githubLink: "https://github.com/mariana/erp-pme",
-    image: "https://images.unsplash.com/photo-1728917330520-9456e3f49529?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMGVycCUyMHN5c3RlbSUyMGRhc2hib2FyZHxlbnwxfHx8fDE3NTgzMzIyODV8MA&ixlib=rb-4.1.0&q=80&w=400&h=200&fit=crop"
-  },
-  {
-    id: 5,
-    title: "Blockchain para Votação Eletrônica",
-    description: "Sistema de votação descentralizado usando blockchain para garantir transparência e segurança.",
-    category: "Engenharia de Software",
-    course: "Engenharia de Software",
-    author: "Lucas Ferreira",
-    professor: "Prof. Dr. Maria Santos",
-    semester: "7º Semestre",
-    shift: "Matutino",
-    class: "ES-2024-1",
-    date: "Outubro 2024",
-    status: "Concluído",
-    tags: ["Solidity", "Web3", "React"],
-    projectLink: "https://github.com/lucas/voting-blockchain",
-    youtubeLink: "https://youtube.com/watch?v=exemplo5",
-    githubLink: "https://github.com/lucas/voting-blockchain",
-    image: "https://images.unsplash.com/photo-1631864032970-68d79f6b7158?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxibG9ja2NoYWluJTIwdm90aW5nJTIwdGVjaG5vbG9neXxlbnwxfHx8fDE3NTgzMzIyODh8MA&ixlib=rb-4.1.0&q=80&w=400&h=200&fit=crop"
-  },
-  {
-    id: 6,
-    title: "Dashboard de Analytics",
-    description: "Plataforma de visualização de dados com dashboards interativos para análise de métricas empresariais.",
-    category: "Análise e Desenvolvimento de Sistemas",
-    course: "Análise e Desenvolvimento de Sistemas",
-    author: "Sofia Rodriguez",
-    professor: "Prof. Carlos Lima",
-    semester: "5º Semestre",
-    shift: "Vespertino",
-    class: "ADS-2024-2",
-    date: "Janeiro 2025",
-    status: "Em Andamento",
-    tags: ["Vue.js", "D3.js", "MongoDB"],
-    projectLink: "https://github.com/sofia/analytics-dashboard",
-    youtubeLink: "https://youtube.com/watch?v=exemplo6",
-    githubLink: "https://github.com/sofia/analytics-dashboard",
-    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkYXRhJTIwYW5hbHl0aWNzJTIwZGFzaGJvYXJkJTIwdmlzdWFsaXphdGlvbnxlbnwxfHx8fDE3NTgyNjc3NzV8MA&ixlib=rb-4.1.0&q=80&w=400&h=200&fit=crop"
+const STATUS_BADGE_CLASS: Record<ProjectStatus, string> = {
+  Publicado: "bg-green-500 text-white",
+  "Em Andamento": "bg-secondary text-secondary-foreground",
+  "Em Revisão": "bg-yellow-200 text-yellow-800",
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) {
+    return "Data não informada";
   }
-];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+};
 
 export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
@@ -190,29 +98,274 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 12;
+  const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
-  const filteredProjects = projects.filter(project => {
+  const loadProjects = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await api.listProjects({ sort: "newest" });
+      setProjects(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível carregar os projetos.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      setIsLoadingStats(true);
+      setStatsError(null);
+      const response = await api.getStats();
+      setStats(response);
+    } catch (err) {
+      setStatsError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível carregar as estatísticas.",
+      );
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProjects();
+    loadStats();
+  }, [loadProjects, loadStats]);
+
+  const categorySummaries = useMemo(() => {
+    const counts = new Map<string, number>();
+    projects.forEach((project) => {
+      if (!project.category) return;
+      counts.set(project.category, (counts.get(project.category) ?? 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .map(([name, count], index) => {
+        const libraryItem = CATEGORY_LIBRARY[name] ?? {
+          icon: Code,
+          color: index % 2 === 0 ? "bg-primary" : "bg-secondary",
+          description: "Projetos acadêmicos cadastrados na plataforma.",
+        };
+        return {
+          id: index + 1,
+          name,
+          icon: libraryItem.icon,
+          count,
+          color: libraryItem.color,
+          description: libraryItem.description,
+        };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [projects]);
+
+  const coursesBreakdown = useMemo(() => {
+    if (stats?.byCourse?.length) {
+      return stats.byCourse.map((course) => ({
+        course: course.course,
+        total: course.total,
+      }));
+    }
+
+    return categorySummaries.map((category) => ({
+      course: category.name,
+      total: category.count,
+    }));
+  }, [stats, categorySummaries]);
+
+  const latestProjects = useMemo(() => {
+    if (stats?.latestProjects?.length) {
+      return stats.latestProjects.map((project) => ({
+        id: project.id,
+        title: project.title,
+        author: project.author,
+        status: project.status,
+        createdAt: new Date(project.created_at).toISOString(),
+      }));
+    }
+
+    return projects
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .slice(0, 5)
+      .map((project) => ({
+        id: project.id,
+        title: project.title,
+        author: project.author ?? "Autor não informado",
+        status: project.status,
+        createdAt: project.createdAt,
+      }));
+  }, [stats, projects]);
+
+  const featuredProjects = useMemo(() => {
+    return projects
+      .slice()
+      .filter((project) => project.status === "Publicado")
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 6);
+  }, [projects]);
+
+  const courseOptions = useMemo(() => {
     return (
-      project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.author.toLowerCase().includes(searchTerm.toLowerCase())
-    ) &&
-    (selectedCourse === "" || selectedCourse === "all" || project.course === selectedCourse) &&
-    (selectedClass === "" || selectedClass === "all" || project.class === selectedClass) &&
-    (selectedShift === "" || selectedShift === "all" || project.shift === selectedShift) &&
-    (selectedSemester === "" || selectedSemester === "all" || project.semester === selectedSemester) &&
-    (selectedProfessor === "" || selectedProfessor === "all" || project.professor === selectedProfessor) &&
-    (selectedStatus === "" || selectedStatus === "all" || project.status === selectedStatus);
-  });
+      Array.from(
+        new Set(projects.map((project) => project.course).filter(Boolean)),
+      ) as string[]
+    ).sort((a, b) => a.localeCompare(b));
+  }, [projects]);
 
-  const uniqueClasses = [...new Set(projects.map(p => p.class))];
-  const uniqueProfessors = [...new Set(projects.map(p => p.professor))];
+  const classOptions = useMemo(() => {
+    return (
+      Array.from(
+        new Set(projects.map((project) => project.class).filter(Boolean)),
+      ) as string[]
+    ).sort((a, b) => a.localeCompare(b));
+  }, [projects]);
+
+  const professorOptions = useMemo(() => {
+    return (
+      Array.from(
+        new Set(
+          projects.map((project) => project.professor).filter(Boolean),
+        ),
+      ) as string[]
+    ).sort((a, b) => a.localeCompare(b));
+  }, [projects]);
+
+  const semesterOptions = useMemo(() => {
+    return (
+      Array.from(
+        new Set(projects.map((project) => project.semester).filter(Boolean)),
+      ) as string[]
+    ).sort((a, b) => a.localeCompare(b));
+  }, [projects]);
+
+  const shiftOptions = useMemo(() => {
+    return (
+      Array.from(
+        new Set(projects.map((project) => project.shift).filter(Boolean)),
+      ) as string[]
+    ).sort((a, b) => a.localeCompare(b));
+  }, [projects]);
+
+  const statusOptions = useMemo(() => {
+    const fromData = new Set<ProjectStatus>();
+    STATUS_OPTIONS.forEach((status) => fromData.add(status));
+    projects.forEach((project) => {
+      if (project.status) {
+        fromData.add(project.status);
+      }
+    });
+    return Array.from(fromData);
+  }, [projects]);
+
+  const shiftCounts = useMemo(
+    () =>
+      Array.from(
+        projects.reduce((map, project) => {
+          if (!project.shift) return map;
+          const total = map.get(project.shift) ?? 0;
+          map.set(project.shift, total + 1);
+          return map;
+        }, new Map<string, number>()),
+      ).map(([shift, total]) => ({ shift, total })),
+    [projects],
+  );
+
+  const totalProjects = stats?.summary.total ?? projects.length;
+  const publishedProjects =
+    stats?.summary.published ??
+    projects.filter((project) => project.status === "Publicado").length;
+  const inProgressProjects =
+    stats?.summary.inProgress ??
+    projects.filter((project) => project.status === "Em Andamento").length;
+  const inReviewProjects =
+    stats?.summary.inReview ??
+    projects.filter((project) => project.status === "Em Revisão").length;
+  const professorsCount = professorOptions.length;
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      const searchableText = [
+        project.title,
+        project.summary,
+        project.description,
+        project.author,
+        project.professor,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = searchableText.includes(
+        searchTerm.toLowerCase(),
+      );
+
+      const matchesCourse =
+        selectedCourse === "all" ||
+        (project.course ?? "") === selectedCourse;
+
+      const matchesClass =
+        selectedClass === "all" ||
+        (project.class ?? "") === selectedClass;
+
+      const matchesShift =
+        selectedShift === "all" ||
+        (project.shift ?? "") === selectedShift;
+
+      const matchesSemester =
+        selectedSemester === "all" ||
+        (project.semester ?? "") === selectedSemester;
+
+      const matchesProfessor =
+        selectedProfessor === "all" ||
+        (project.professor ?? "") === selectedProfessor;
+
+      const matchesStatus =
+        selectedStatus === "all" || project.status === selectedStatus;
+
+      return (
+        matchesSearch &&
+        matchesCourse &&
+        matchesClass &&
+        matchesShift &&
+        matchesSemester &&
+        matchesProfessor &&
+        matchesStatus
+      );
+    });
+  }, [
+    projects,
+    searchTerm,
+    selectedCourse,
+    selectedClass,
+    selectedShift,
+    selectedSemester,
+    selectedProfessor,
+    selectedStatus,
+  ]);
 
   // Paginação
   const totalPages = Math.ceil(filteredProjects.length / projectsPerPage);
   const startIndex = (currentPage - 1) * projectsPerPage;
   const endIndex = startIndex + projectsPerPage;
   const currentProjects = filteredProjects.slice(startIndex, endIndex);
+  const fromIndex = filteredProjects.length === 0 ? 0 : startIndex + 1;
+  const toIndex =
+    filteredProjects.length === 0
+      ? 0
+      : Math.min(endIndex, filteredProjects.length);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -279,9 +432,9 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os Cursos</SelectItem>
-                      {categories.map(category => (
-                        <SelectItem key={category.id} value={category.name}>
-                          {category.name}
+                      {courseOptions.map((course) => (
+                        <SelectItem key={course} value={course}>
+                          {course}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -293,10 +446,11 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="Concluído">Concluído</SelectItem>
-                      <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                      <SelectItem value="Em Revisão">Em Revisão</SelectItem>
-                      <SelectItem value="Publicado">Publicado</SelectItem>
+                      {statusOptions.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
 
@@ -310,7 +464,7 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
               {/* Contadores */}
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>
-                  Mostrando {startIndex + 1}-{Math.min(endIndex, filteredProjects.length)} de {filteredProjects.length} projetos
+                  Mostrando {fromIndex}-{toIndex} de {filteredProjects.length} projetos
                 </span>
                 <span>
                   Página {currentPage} de {totalPages || 1}
@@ -320,81 +474,181 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
 
             {/* Lista de Projetos */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {currentProjects.map((project) => (
-                <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                  {/* Imagem do Projeto */}
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={project.image}
-                      alt={project.title}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                    />
-                    <div className="absolute top-4 left-4">
-                      <Badge 
-                        variant="secondary" 
-                        className={project.status === 'Publicado' ? 'bg-primary text-primary-foreground' : 
-                                  project.status === 'Concluído' ? 'bg-green-500 text-white' :
-                                  project.status === 'Em Andamento' ? 'bg-secondary text-secondary-foreground' : 
-                                  'bg-muted text-muted-foreground'}
-                      >
-                        {project.status}
-                      </Badge>
-                    </div>
-                  </div>
+              {isLoading && (
+                <div className="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <div className="animate-spin h-10 w-10 border-2 border-primary border-t-transparent rounded-full mb-4" />
+                  Carregando projetos...
+                </div>
+              )}
 
-                  {/* Conteúdo do Card */}
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
-                      {project.title}
-                    </h3>
+              {!isLoading && error && (
+                <div className="col-span-full text-center py-12 space-y-4">
+                  <p className="text-muted-foreground">
+                    {error}
+                  </p>
+                  <Button variant="outline" onClick={loadProjects}>
+                    Tentar novamente
+                  </Button>
+                </div>
+              )}
 
-                    <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
-                      {project.description}
-                    </p>
+              {!isLoading && !error && currentProjects.length === 0 && (
+                <div className="col-span-full text-center py-12 space-y-4">
+                  <p className="text-muted-foreground">
+                    Nenhum projeto encontrado com os filtros aplicados.
+                  </p>
+                  <Button variant="outline" onClick={clearFilters}>
+                    Limpar filtros
+                  </Button>
+                </div>
+              )}
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Users className="h-4 w-4 mr-2" />
-                        {project.author}
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        {project.date} • {project.class}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {project.professor} • {project.semester} • {project.shift}
-                      </div>
-                    </div>
+              {!isLoading &&
+                !error &&
+                currentProjects.map((project) => {
+                  const badgeClass =
+                    STATUS_BADGE_CLASS[project.status] ??
+                    "bg-muted text-muted-foreground";
+                  const coverImage = project.thumbnail ?? projeplacLogo;
+                  const summary =
+                    project.summary ??
+                    project.description ??
+                    "Este projeto ainda não possui descrição detalhada.";
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {project.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+                  const details = [
+                    project.professor,
+                    project.semester,
+                    project.shift,
+                    project.course,
+                  ]
+                    .filter(Boolean)
+                    .join(" • ");
 
-                    <Button 
-                      className="w-full bg-primary hover:bg-primary/90"
-                      onClick={() => onNavigateToProjectDetails?.(project.id)}
+                  return (
+                    <Card
+                      key={project.id}
+                      className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                     >
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                      <div className="relative h-48 overflow-hidden">
+                        <img
+                          src={coverImage}
+                          alt={project.title}
+                          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute top-4 left-4">
+                          <Badge variant="secondary" className={badgeClass}>
+                            {project.status}
+                          </Badge>
+                        </div>
+                        <div className="absolute top-4 right-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="bg-white/90 hover:bg-white"
+                            onClick={() =>
+                              onNavigateToProjectDetails?.(project.id)
+                            }
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
 
-            {filteredProjects.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  Nenhum projeto encontrado com os filtros aplicados.
-                </p>
-                <Button variant="outline" onClick={clearFilters} className="mt-4">
-                  Limpar Filtros
-                </Button>
-              </div>
-            )}
+                      <div className="p-6 space-y-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-lg font-semibold text-foreground line-clamp-2 flex-1">
+                            {project.title}
+                          </h3>
+                          {project.views > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              {project.views} visualizações
+                            </Badge>
+                          )}
+                        </div>
+
+                        <p className="text-muted-foreground text-sm line-clamp-3">
+                          {summary}
+                        </p>
+
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          <div className="flex items-center">
+                            <Users className="h-4 w-4 mr-2" />
+                            {project.author ?? "Autor não informado"}
+                          </div>
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            {formatDate(project.createdAt)}
+                            {project.class ? ` • ${project.class}` : ""}
+                          </div>
+                          {details && <div>{details}</div>}
+                        </div>
+
+                        {project.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {project.tags.map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2">
+                          {project.projectUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a
+                                href={project.projectUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                                Projeto
+                              </a>
+                            </Button>
+                          )}
+                          {project.youtubeUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a
+                                href={project.youtubeUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2"
+                              >
+                                <Youtube className="h-4 w-4" />
+                                Vídeo
+                              </a>
+                            </Button>
+                          )}
+                          {project.githubUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a
+                                href={project.githubUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2"
+                              >
+                                <Github className="h-4 w-4" />
+                                GitHub
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+
+                        <Button
+                          className="w-full bg-primary hover:bg-primary/90"
+                          onClick={() =>
+                            onNavigateToProjectDetails?.(project.id)
+                          }
+                        >
+                          Ver Detalhes
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
+            </div>
 
             {/* Paginação */}
             {filteredProjects.length > 0 && totalPages > 1 && (
@@ -460,13 +714,13 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {categories.map((category) => {
+                {categorySummaries.map((category) => {
                   const Icon = category.icon;
                   return (
                     <Card 
-                      key={category.id} 
+                      key={category.name} 
                       className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer group hover:-translate-y-1"
-                      onClick={() => setSelectedCourse(category.name)}
+                      onClick={() => handleFilterChange(setSelectedCourse, category.name)}
                     >
                       <div className="text-center">
                         <div className="flex justify-center mb-4">
@@ -508,15 +762,15 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <div>
                   <Label htmlFor="course-filter">Curso</Label>
-                  <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                  <Select value={selectedCourse} onValueChange={(value) => handleFilterChange(setSelectedCourse, value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o curso" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os Cursos</SelectItem>
-                      {categories.map(category => (
-                        <SelectItem key={category.id} value={category.name}>
-                          {category.name}
+                      {courseOptions.map((course) => (
+                        <SelectItem key={course} value={course}>
+                          {course}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -525,13 +779,13 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
 
                 <div>
                   <Label htmlFor="class-filter">Turma</Label>
-                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                  <Select value={selectedClass} onValueChange={(value) => handleFilterChange(setSelectedClass, value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a turma" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas as Turmas</SelectItem>
-                      {uniqueClasses.map(className => (
+                      {classOptions.map((className) => (
                         <SelectItem key={className} value={className}>
                           {className}
                         </SelectItem>
@@ -542,48 +796,47 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
 
                 <div>
                   <Label htmlFor="shift-filter">Turno</Label>
-                  <Select value={selectedShift} onValueChange={setSelectedShift}>
+                  <Select value={selectedShift} onValueChange={(value) => handleFilterChange(setSelectedShift, value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o turno" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os Turnos</SelectItem>
-                      <SelectItem value="Matutino">Matutino</SelectItem>
-                      <SelectItem value="Vespertino">Vespertino</SelectItem>
-                      <SelectItem value="Noturno">Noturno</SelectItem>
+                      {shiftOptions.map((shift) => (
+                        <SelectItem key={shift} value={shift}>
+                          {shift}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <Label htmlFor="semester-filter">Semestre</Label>
-                  <Select value={selectedSemester} onValueChange={setSelectedSemester}>
+                  <Select value={selectedSemester} onValueChange={(value) => handleFilterChange(setSelectedSemester, value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o semestre" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os Semestres</SelectItem>
-                      <SelectItem value="1º Semestre">1º Semestre</SelectItem>
-                      <SelectItem value="2º Semestre">2º Semestre</SelectItem>
-                      <SelectItem value="3º Semestre">3º Semestre</SelectItem>
-                      <SelectItem value="4º Semestre">4º Semestre</SelectItem>
-                      <SelectItem value="5º Semestre">5º Semestre</SelectItem>
-                      <SelectItem value="6º Semestre">6º Semestre</SelectItem>
-                      <SelectItem value="7º Semestre">7º Semestre</SelectItem>
-                      <SelectItem value="8º Semestre">8º Semestre</SelectItem>
+                      {semesterOptions.map((semester) => (
+                        <SelectItem key={semester} value={semester}>
+                          {semester}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <Label htmlFor="professor-filter">Professor</Label>
-                  <Select value={selectedProfessor} onValueChange={setSelectedProfessor}>
+                  <Select value={selectedProfessor} onValueChange={(value) => handleFilterChange(setSelectedProfessor, value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o professor" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os Professores</SelectItem>
-                      {uniqueProfessors.map(professor => (
+                      {professorOptions.map((professor) => (
                         <SelectItem key={professor} value={professor}>
                           {professor}
                         </SelectItem>
@@ -594,16 +847,17 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
 
                 <div>
                   <Label htmlFor="status-filter">Status</Label>
-                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <Select value={selectedStatus} onValueChange={(value) => handleFilterChange(setSelectedStatus, value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="Concluído">Concluído</SelectItem>
-                      <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                      <SelectItem value="Em Revisão">Em Revisão</SelectItem>
-                      <SelectItem value="Publicado">Publicado</SelectItem>
+                      {statusOptions.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -621,69 +875,180 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
 
             {/* Resultados dos Filtros */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {currentProjects.map((project) => (
-                <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                  {/* Imagem do Projeto */}
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={project.image}
-                      alt={project.title}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                    />
-                    <div className="absolute top-4 left-4">
-                      <Badge 
-                        variant="secondary" 
-                        className={project.status === 'Publicado' ? 'bg-primary text-primary-foreground' : 
-                                  project.status === 'Concluído' ? 'bg-green-500 text-white' :
-                                  project.status === 'Em Andamento' ? 'bg-secondary text-secondary-foreground' : 
-                                  'bg-muted text-muted-foreground'}
-                      >
-                        {project.status}
-                      </Badge>
-                    </div>
-                  </div>
+              {isLoading && (
+                <div className="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <div className="animate-spin h-10 w-10 border-2 border-primary border-t-transparent rounded-full mb-4" />
+                  Carregando projetos...
+                </div>
+              )}
 
-                  {/* Conteúdo do Card */}
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
-                      {project.title}
-                    </h3>
+              {!isLoading && error && (
+                <div className="col-span-full text-center py-12 space-y-4">
+                  <p className="text-muted-foreground">
+                    {error}
+                  </p>
+                  <Button variant="outline" onClick={loadProjects}>
+                    Tentar novamente
+                  </Button>
+                </div>
+              )}
 
-                    <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
-                      {project.description}
-                    </p>
+              {!isLoading && !error && currentProjects.length === 0 && (
+                <div className="col-span-full text-center py-12 space-y-4">
+                  <p className="text-muted-foreground">
+                    Nenhum projeto encontrado com os filtros aplicados.
+                  </p>
+                  <Button variant="outline" onClick={clearFilters}>
+                    Limpar filtros
+                  </Button>
+                </div>
+              )}
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Users className="h-4 w-4 mr-2" />
-                        {project.author}
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        {project.date} • {project.class}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {project.professor} • {project.semester} • {project.shift}
-                      </div>
-                    </div>
+              {!isLoading &&
+                !error &&
+                currentProjects.map((project) => {
+                  const badgeClass =
+                    STATUS_BADGE_CLASS[project.status] ??
+                    "bg-muted text-muted-foreground";
+                  const coverImage = project.thumbnail ?? projeplacLogo;
+                  const summary =
+                    project.summary ??
+                    project.description ??
+                    "Este projeto ainda não possui descrição detalhada.";
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {project.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+                  const details = [
+                    project.professor,
+                    project.semester,
+                    project.shift,
+                    project.course,
+                  ]
+                    .filter(Boolean)
+                    .join(" • ");
 
-                    <Button 
-                      className="w-full bg-primary hover:bg-primary/90"
-                      onClick={() => onNavigateToProjectDetails?.(project.id)}
+                  return (
+                    <Card
+                      key={project.id}
+                      className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                     >
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+                      <div className="relative h-48 overflow-hidden">
+                        <img
+                          src={coverImage}
+                          alt={project.title}
+                          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute top-4 left-4">
+                          <Badge variant="secondary" className={badgeClass}>
+                            {project.status}
+                          </Badge>
+                        </div>
+                        <div className="absolute top-4 right-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="bg-white/90 hover:bg-white"
+                            onClick={() =>
+                              onNavigateToProjectDetails?.(project.id)
+                            }
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="p-6 space-y-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-lg font-semibold text-foreground line-clamp-2 flex-1">
+                            {project.title}
+                          </h3>
+                          {project.views > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              {project.views} visualizações
+                            </Badge>
+                          )}
+                        </div>
+
+                        <p className="text-muted-foreground text-sm line-clamp-3">
+                          {summary}
+                        </p>
+
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          <div className="flex items-center">
+                            <Users className="h-4 w-4 mr-2" />
+                            {project.author ?? "Autor não informado"}
+                          </div>
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            {formatDate(project.createdAt)}
+                            {project.class ? ` • ${project.class}` : ""}
+                          </div>
+                          {details && <div>{details}</div>}
+                        </div>
+
+                        {project.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {project.tags.map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2">
+                          {project.projectUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a
+                                href={project.projectUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                                Projeto
+                              </a>
+                            </Button>
+                          )}
+                          {project.youtubeUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a
+                                href={project.youtubeUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2"
+                              >
+                                <Youtube className="h-4 w-4" />
+                                Vídeo
+                              </a>
+                            </Button>
+                          )}
+                          {project.githubUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a
+                                href={project.githubUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2"
+                              >
+                                <Github className="h-4 w-4" />
+                                GitHub
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+
+                        <Button
+                          className="w-full bg-primary hover:bg-primary/90"
+                          onClick={() =>
+                            onNavigateToProjectDetails?.(project.id)
+                          }
+                        >
+                          Ver Detalhes
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
             </div>
 
             {/* Paginação para Filtros Avançados */}
@@ -747,72 +1112,144 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
               <h3 className="text-2xl font-bold text-foreground text-center">
                 Estatísticas dos Projetos
               </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="p-6 text-center">
-                  <h4 className="text-2xl font-bold text-primary mb-2">{projects.length}</h4>
-                  <p className="text-muted-foreground">Total de Projetos</p>
-                </Card>
-                
-                <Card className="p-6 text-center">
-                  <h4 className="text-2xl font-bold text-secondary mb-2">
-                    {projects.filter(p => p.status === 'Concluído').length}
-                  </h4>
-                  <p className="text-muted-foreground">Projetos Concluídos</p>
-                </Card>
-                
-                <Card className="p-6 text-center">
-                  <h4 className="text-2xl font-bold text-primary mb-2">
-                    {projects.filter(p => p.status === 'Em Andamento').length}
-                  </h4>
-                  <p className="text-muted-foreground">Em Andamento</p>
-                </Card>
-                
-                <Card className="p-6 text-center">
-                  <h4 className="text-2xl font-bold text-secondary mb-2">
-                    {uniqueProfessors.length}
-                  </h4>
-                  <p className="text-muted-foreground">Professores Orientadores</p>
-                </Card>
-              </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="p-6">
-                  <h4 className="text-lg font-semibold mb-4">Projetos por Curso</h4>
-                  <div className="space-y-3">
-                    {categories.map(category => (
-                      <div key={category.id} className="flex justify-between items-center">
-                        <span className="text-muted-foreground">{category.name}</span>
-                        <Badge variant="outline">{category.count} projetos</Badge>
+              {isLoadingStats ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <div className="animate-spin h-10 w-10 border-2 border-primary border-t-transparent rounded-full mb-4" />
+                  Carregando estatísticas...
+                </div>
+              ) : statsError ? (
+                <div className="text-center py-12 space-y-4">
+                  <p className="text-muted-foreground">{statsError}</p>
+                  <Button variant="outline" onClick={loadStats}>
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card className="p-6 text-center">
+                      <h4 className="text-2xl font-bold text-primary mb-2">
+                        {totalProjects}
+                      </h4>
+                      <p className="text-muted-foreground">Total de Projetos</p>
+                    </Card>
+
+                    <Card className="p-6 text-center">
+                      <h4 className="text-2xl font-bold text-secondary mb-2">
+                        {publishedProjects}
+                      </h4>
+                      <p className="text-muted-foreground">Projetos Publicados</p>
+                    </Card>
+
+                    <Card className="p-6 text-center">
+                      <h4 className="text-2xl font-bold text-primary mb-2">
+                        {inProgressProjects}
+                      </h4>
+                      <p className="text-muted-foreground">Em Andamento</p>
+                    </Card>
+
+                    <Card className="p-6 text-center">
+                      <h4 className="text-2xl font-bold text-secondary mb-2">
+                        {inReviewProjects}
+                      </h4>
+                      <p className="text-muted-foreground">Em Revisão</p>
+                    </Card>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <Card className="p-6 text-center">
+                      <h4 className="text-lg font-semibold mb-2">
+                        Professores Orientadores
+                      </h4>
+                      <p className="text-3xl font-bold text-primary">
+                        {professorsCount}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Total de professores envolvidos
+                      </p>
+                    </Card>
+
+                    <Card className="p-6">
+                      <h4 className="text-lg font-semibold mb-4">
+                        Projetos por Curso
+                      </h4>
+                      <div className="space-y-3">
+                        {coursesBreakdown.length === 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhum curso cadastrado até o momento.
+                          </p>
+                        )}
+                        {coursesBreakdown.map(({ course, total }) => (
+                          <div
+                            key={course}
+                            className="flex justify-between items-center"
+                          >
+                            <span className="text-muted-foreground">
+                              {course}
+                            </span>
+                            <Badge variant="outline">{total} projetos</Badge>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </Card>
+                    </Card>
 
-                <Card className="p-6">
-                  <h4 className="text-lg font-semibold mb-4">Projetos por Turno</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Matutino</span>
-                      <Badge variant="outline">
-                        {projects.filter(p => p.shift === 'Matutino').length} projetos
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Vespertino</span>
-                      <Badge variant="outline">
-                        {projects.filter(p => p.shift === 'Vespertino').length} projetos
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Noturno</span>
-                      <Badge variant="outline">
-                        {projects.filter(p => p.shift === 'Noturno').length} projetos
-                      </Badge>
-                    </div>
+                    <Card className="p-6">
+                      <h4 className="text-lg font-semibold mb-4">
+                        Projetos por Turno
+                      </h4>
+                      <div className="space-y-3">
+                        {shiftCounts.length === 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhum turno registrado até o momento.
+                          </p>
+                        )}
+                        {shiftCounts.map(({ shift, total }) => (
+                          <div
+                            key={shift}
+                            className="flex justify-between items-center"
+                          >
+                            <span className="text-muted-foreground">{shift}</span>
+                            <Badge variant="outline">{total} projetos</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
                   </div>
-                </Card>
-              </div>
+
+                  <Card className="p-6">
+                    <h4 className="text-lg font-semibold mb-4">
+                      Novos projetos cadastrados
+                    </h4>
+                    <div className="space-y-3">
+                      {latestProjects.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhum projeto cadastrado recentemente.
+                        </p>
+                      )}
+                      {latestProjects.map((project) => (
+                        <div
+                          key={project.id}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground"
+                        >
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {project.title}
+                            </p>
+                            <p>{project.author ?? "Autor não informado"}</p>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <Badge variant="outline">{project.status}</Badge>
+                            <p className="text-xs">
+                              {formatDate(project.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </>
+              )}
             </div>
           </TabsContent>
 
@@ -823,59 +1260,133 @@ export function Projects({ onBack, onNavigateToProjectDetails }: ProjectsProps) 
                 Projetos em Destaque
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {projects.filter(p => p.status === 'Publicado' || p.status === 'Concluído').map((project) => (
-                  <Card key={project.id} className="p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-primary/20">
-                    <div className="flex justify-between items-start mb-4">
-                      <Badge className="bg-primary text-primary-foreground">
-                        ⭐ Destaque
-                      </Badge>
-                      <div className="flex space-x-1">
-                        <Button variant="ghost" size="sm" title="Ver Projeto">
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" title="YouTube">
-                          <Youtube className="h-4 w-4 text-red-600" />
-                        </Button>
-                        <Button variant="ghost" size="sm" title="GitHub">
-                          <Github className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+              {featuredProjects.length === 0 ? (
+                <div className="text-center text-muted-foreground py-12">
+                  Nenhum projeto publicado disponível ainda.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {featuredProjects.map((project) => {
+                    const coverImage = project.thumbnail ?? projeplacLogo;
+                    const summary =
+                      project.summary ??
+                      project.description ??
+                      "Projeto publicado sem descrição detalhada.";
 
-                    <h3 className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
-                      {project.title}
-                    </h3>
+                    return (
+                      <Card
+                        key={project.id}
+                        className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-primary/20"
+                      >
+                        <div className="relative h-40 overflow-hidden">
+                          <img
+                            src={coverImage}
+                            alt={project.title}
+                            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                            loading="lazy"
+                          />
+                          <div className="absolute top-4 left-4">
+                            <Badge className="bg-primary text-primary-foreground flex items-center gap-2">
+                              ⭐ Destaque
+                            </Badge>
+                          </div>
+                        </div>
 
-                    <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
-                      {project.description}
-                    </p>
+                        <div className="p-6 space-y-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="text-lg font-semibold text-foreground line-clamp-2">
+                                {project.title}
+                              </h3>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Publicado em {formatDate(project.createdAt)}
+                              </p>
+                            </div>
+                            <div className="flex space-x-1">
+                              {project.projectUrl && (
+                                <Button variant="ghost" size="sm" asChild title="Ver Projeto">
+                                  <a
+                                    href={project.projectUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              {project.youtubeUrl && (
+                                <Button variant="ghost" size="sm" asChild title="Vídeo">
+                                  <a
+                                    href={project.youtubeUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center text-red-600"
+                                  >
+                                    <Youtube className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              {project.githubUrl && (
+                                <Button variant="ghost" size="sm" asChild title="Repositório">
+                                  <a
+                                    href={project.githubUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center"
+                                  >
+                                    <Github className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Users className="h-4 w-4 mr-2" />
-                        {project.author}
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        {project.date} • {project.class}
-                      </div>
-                    </div>
+                          <p className="text-muted-foreground text-sm line-clamp-3">
+                            {summary}
+                          </p>
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {project.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <div className="flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              {project.author ?? "Autor não informado"}
+                            </div>
+                            {project.course && (
+                              <div className="flex items-center">
+                                <Calendar className="h-4 w-4 mr-2" />
+                                {project.course}
+                              </div>
+                            )}
+                          </div>
 
-                    <Button className="w-full bg-primary hover:bg-primary/90">
-                      Ver Detalhes
-                    </Button>
-                  </Card>
-                ))}
-              </div>
+                          {project.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {project.tags.map((tag) => (
+                                <Badge
+                                  key={`${project.id}-${tag}`}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+
+                          <Button
+                            className="w-full bg-primary hover:bg-primary/90"
+                            onClick={() =>
+                              onNavigateToProjectDetails?.(project.id)
+                            }
+                          >
+                            Ver Detalhes
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
