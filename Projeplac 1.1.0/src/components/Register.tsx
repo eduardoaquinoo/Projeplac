@@ -6,8 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ArrowLeft, UserPlus, User, GraduationCap, Clock, Calendar, Lock, Mail, Phone, BookOpen, Briefcase } from "lucide-react";
 import { useState } from "react";
 import projeplacLogo from "figma:asset/b3251cf511c1d97994f8e9f326025eaf4de9bd06.png";
-import { createClient } from "../utils/supabase/client";
-import { projectId, publicAnonKey } from "../utils/supabase/info";
+import { registerUser } from "../utils/auth";
 
 interface RegisterProps {
   onBack: () => void;
@@ -151,32 +150,22 @@ export function Register({ onBack, onRegisterSuccess }: RegisterProps) {
     setError("");
 
     try {
-      // Chamada para o servidor backend
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-0317df7d/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          name: formData.name,
-          ra: formData.ra,
-          phone: formData.phone,
-          shift: formData.shift,
-          course: formData.course,
-          semester: formData.semester,
-          birthDate: formData.birthDate,
-          userType: formData.userType,
-        }),
+      const result = registerUser({
+        id: "",
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        userType: formData.userType as "aluno" | "professor",
+        ra: formData.userType === "aluno" ? formData.ra.trim() : undefined,
+        phone: formData.phone.trim() || undefined,
+        shift: formData.userType === "aluno" ? formData.shift : undefined,
+        course: formData.userType === "aluno" ? formData.course : undefined,
+        semester: formData.userType === "aluno" ? formData.semester : undefined,
+        birthDate: formData.birthDate,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error('Erro ao cadastrar:', data.error);
-        setError(data.error || 'Erro ao realizar cadastro');
+      if (!result.success) {
+        setError(result.error);
         setIsLoading(false);
         return;
       }
@@ -192,31 +181,7 @@ export function Register({ onBack, onRegisterSuccess }: RegisterProps) {
   };
 
   const handleGoogleSignup = async () => {
-    try {
-      setIsLoading(true);
-      setError("");
-      
-      const supabase = createClient();
-      
-      // Importante: Configure o Google OAuth nas configurações do Supabase
-      // Siga as instruções em: https://supabase.com/docs/guides/auth/social-login/auth-google
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        }
-      });
-
-      if (error) {
-        console.error('Erro ao cadastrar com Google:', error);
-        setError("Erro ao cadastrar com Google. Certifique-se de que o provedor está configurado no Supabase.");
-      }
-    } catch (err) {
-      console.error('Erro ao processar cadastro com Google:', err);
-      setError("Erro ao processar cadastro com Google.");
-    } finally {
-      setIsLoading(false);
-    }
+    setError("Cadastro com Google indisponível nesta versão.");
   };
 
   return (
@@ -547,13 +512,13 @@ export function Register({ onBack, onRegisterSuccess }: RegisterProps) {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full border-border hover:bg-accent"
+                className="w-full border-border hover:bg-accent disabled:opacity-70"
                 onClick={handleGoogleSignup}
-                disabled={isLoading}
+                disabled
               >
                 <span className="flex items-center justify-center space-x-2">
                   <Mail className="h-5 w-5 text-[#EA4335]" />
-                  <span>Cadastrar com Google</span>
+                  <span>Cadastrar com Google (indisponível)</span>
                 </span>
               </Button>
 
@@ -584,11 +549,10 @@ export function Register({ onBack, onRegisterSuccess }: RegisterProps) {
           </ul>
         </div>
 
-        {/* Aviso sobre configuração Google OAuth */}
+        {/* Aviso sobre cadastro social */}
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            <strong>Nota:</strong> Para usar o login com Google, é necessário configurar o provedor OAuth no Supabase.
-            Siga as instruções em: <a href="https://supabase.com/docs/guides/auth/social-login/auth-google" target="_blank" rel="noopener noreferrer" className="underline">https://supabase.com/docs/guides/auth/social-login/auth-google</a>
+            <strong>Nota:</strong> O cadastro via Google não está disponível nesta versão sem Supabase. Utilize o formulário acima para criar sua conta.
           </p>
         </div>
       </div>

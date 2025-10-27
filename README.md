@@ -1,10 +1,10 @@
 # Projeplac
 
-Projeplac é uma plataforma web que centraliza projetos acadêmicos produzidos na UNICEPLAC, oferecendo um catálogo pesquisável com destaque para autores, cursos e categorias. A aplicação foi construída com React, Vite e Tailwind CSS, integrando-se ao Supabase para autenticação.
+Projeplac é uma plataforma web que centraliza projetos acadêmicos produzidos na UNICEPLAC, oferecendo um catálogo pesquisável com destaque para autores, cursos e categorias. A aplicação foi construída com React, Vite e Tailwind CSS e conta com uma API Node.js/SQLite responsável pelos dados dos projetos.
 
 ## Estrutura do repositório
 
-- `Projeplac 1.1.0/` – versão atual da aplicação. Projeto Vite + React com componentes em `src/components`, estilos em `src/styles`, utilitários em `src/utils` (incluindo o cliente Supabase) e recursos estáticos em `src/assets`. Há também um rascunho de funções edge em `src/supabase/functions` para futuras automações no Supabase.
+- `Projeplac 1.1.0/` – versão atual da aplicação. Projeto Vite + React com componentes em `src/components`, estilos em `src/styles`, utilitários em `src/utils` (validados para autenticação local e integrações com a API) e recursos estáticos em `src/assets`.
 - `projeplac 1.0.0/` – versão anterior do frontend, mantida como referência histórica.
 - `paginaInicialFront/` – protótipo inicial exportado do Figma, útil para consulta.
 - `README.md` – este arquivo.
@@ -13,15 +13,14 @@ Dentro de `Projeplac 1.1.0/src`, os principais diretórios são:
 
 - `components/` – componentes React que compõem as telas (Header, Hero, Projects, Login, Dashboard etc.). Os subdiretórios `components/ui` e `components/figma` abrigam elementos estilizados reutilizáveis e assets importados do Figma.
 - `styles/` – arquivos de estilo globais (Tailwind CSS 4).
-- `utils/` – funções auxiliares, incluindo a criação do cliente Supabase (`utils/supabase/client.tsx`) e as chaves públicas (`utils/supabase/info.tsx`).
-- `supabase/functions/` – handlers Hono/Deno planejados para serem publicados como funções edge no Supabase (requer Supabase CLI para deploy).
+- `utils/` – funções auxiliares, incluindo o helper de autenticação local (`utils/auth.ts`) e utilitários da aplicação.
 - `guidelines/` – notas e diretrizes de design/cópia usadas no desenvolvimento.
 
 ## Pré-requisitos
 
 - Node.js 18 ou superior (recomendado instalar via [nvm](https://github.com/nvm-sh/nvm)).
 - npm (instalado junto com o Node.js). Se preferir, adapte os comandos para pnpm ou yarn.
-- Opcional: Supabase CLI caso deseje testar/implantar as funções edge em `supabase/functions`.
+- Opcional: ferramentas SQLite (como o `sqlite3`) para inspecionar o banco local (`api/projeplac.db`).
 
 ## Instalação e execução local (versão 1.1.0)
 
@@ -55,10 +54,10 @@ Dentro de `Projeplac 1.1.0/src`, os principais diretórios são:
    ```
 6. Abra o navegador em `http://localhost:5173`. O hot reload ficará ativo enquanto os comandos estiverem rodando.
 
-### Variáveis e integrações
+### Integração com a API local
 
-- O frontend utiliza o Supabase via `src/utils/supabase/info.tsx`. Para apontar para outro projeto Supabase, altere `projectId` e `publicAnonKey`.
-- Para usar as funções edge (`src/supabase/functions/server`), configure as variáveis `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no ambiente do Supabase e publique os handlers com a CLI (`supabase functions deploy`).
+- O frontend consome a API Express/SQLite exposta em `http://localhost:3333`.
+- A autenticação de exemplo é feita no navegador (armazenada em `localStorage`), permitindo logins de teste sem depender de serviços externos. Ajuste `src/utils/auth.ts` se desejar uma estratégia diferente.
 
 ## Scripts disponíveis
 
@@ -96,4 +95,3 @@ Abra `http://localhost:5173` em outra aba para visualizar essa versão.
 ## Próximos passos sugeridos
 
 - Revisar e eventualmente remover as versões legadas (`projeplac 1.0.0/` e `paginaInicialFront/`) se não forem mais necessárias.
-- Configurar variáveis seguras (por exemplo, usando arquivos `.env`) caso as chaves do Supabase passem a ser privadas.

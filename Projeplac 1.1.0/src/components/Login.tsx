@@ -5,7 +5,7 @@ import { Label } from "./ui/label";
 import { ArrowLeft, LogIn, UserPlus, User, Lock, Mail as GmailIcon } from "lucide-react";
 import { useState } from "react";
 import projeplacLogo from "figma:asset/b3251cf511c1d97994f8e9f326025eaf4de9bd06.png";
-import { createClient } from "../utils/supabase/client";
+import { authenticateUser } from "../utils/auth";
 
 interface LoginProps {
   onBack: () => void;
@@ -41,34 +41,37 @@ export function Login({ onBack, onLoginSuccess, onNavigateToRegister, onAdminLog
       if (formData.username.toLowerCase() === "admin" && formData.password === "admin") {
         alert("Login de administrador realizado com sucesso!");
         localStorage.setItem('isAdmin', 'true');
+        localStorage.setItem('isLoggedIn', 'true');
         onAdminLoginSuccess();
         setIsLoading(false);
         return;
       }
 
-      const supabase = createClient();
-      
-      // Tenta fazer login com Supabase
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.username.includes('@') ? formData.username : `${formData.username}@uniceplac.edu.br`,
-        password: formData.password,
-      });
+      const result = authenticateUser(formData.username, formData.password);
 
-      if (signInError) {
-        // Se falhar, verifica credenciais do usuário teste local
+      if (!result.success) {
         if (formData.username === "24686" && formData.password === "123456") {
+          localStorage.setItem("isLoggedIn", "true");
+          localStorage.setItem("projeplac_current_author", "Usuário de Teste");
           alert("Login realizado com sucesso!");
           onLoginSuccess();
           setIsLoading(false);
           return;
         }
-        
-        setError("Usuário ou senha incorretos. Para teste, use: RA: 24686, Senha: 123456 ou Admin: admin, Senha: admin");
+
+        setError(result.error);
         setIsLoading(false);
         return;
       }
 
-      // Login bem-sucedido
+      const { user } = result;
+      localStorage.setItem("isLoggedIn", "true");
+      if (user.name) {
+        localStorage.setItem("projeplac_current_author", user.name);
+      }
+      localStorage.setItem("projeplac_current_user_email", user.email);
+      localStorage.setItem("projeplac_current_user_type", user.userType);
+
       alert("Login realizado com sucesso!");
       onLoginSuccess();
     } catch (err) {
@@ -80,31 +83,7 @@ export function Login({ onBack, onLoginSuccess, onNavigateToRegister, onAdminLog
   };
 
   const handleGoogleLogin = async () => {
-    try {
-      setIsLoading(true);
-      setError("");
-      
-      const supabase = createClient();
-      
-      // Importante: Configure o Google OAuth nas configurações do Supabase
-      // Siga as instruções em: https://supabase.com/docs/guides/auth/social-login/auth-google
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        }
-      });
-
-      if (error) {
-        console.error('Erro ao fazer login com Google:', error);
-        setError("Erro ao fazer login com Google. Certifique-se de que o provedor está configurado no Supabase.");
-      }
-    } catch (err) {
-      console.error('Erro ao processar login com Google:', err);
-      setError("Erro ao processar login com Google.");
-    } finally {
-      setIsLoading(false);
-    }
+    setError("Login com Google indisponível no momento.");
   };
 
   return (
@@ -240,13 +219,13 @@ export function Login({ onBack, onLoginSuccess, onNavigateToRegister, onAdminLog
               <Button
                 type="button"
                 variant="outline"
-                className="w-full border-border hover:bg-accent"
+                className="w-full border-border hover:bg-accent disabled:opacity-70"
                 onClick={handleGoogleLogin}
-                disabled={isLoading}
+                disabled
               >
                 <span className="flex items-center justify-center space-x-2">
                   <GmailIcon className="h-5 w-5 text-[#EA4335]" />
-                  <span>Entrar com Google</span>
+                  <span>Entrar com Google (indisponível)</span>
                 </span>
               </Button>
 
@@ -307,11 +286,10 @@ export function Login({ onBack, onLoginSuccess, onNavigateToRegister, onAdminLog
           </div>
         </div>
 
-        {/* Aviso sobre configuração Google OAuth */}
+        {/* Aviso sobre login social */}
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            <strong>Nota:</strong> Para usar o login com Google, é necessário configurar o provedor OAuth no Supabase.
-            Siga as instruções em: <a href="https://supabase.com/docs/guides/auth/social-login/auth-google" target="_blank" rel="noopener noreferrer" className="underline">https://supabase.com/docs/guides/auth/social-login/auth-google</a>
+            <strong>Nota:</strong> O login com Google está desativado nesta versão sem Supabase. Utilize as credenciais locais ou crie uma conta manualmente.
           </p>
         </div>
       </div>

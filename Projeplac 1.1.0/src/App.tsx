@@ -14,7 +14,6 @@ import { MyProjects } from "./components/MyProjects";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { SearchResults } from "./components/SearchResults";
 import { useState, useEffect } from "react";
-import { createClient } from "./utils/supabase/client";
 
 type Page =
   | "home"
@@ -39,45 +38,11 @@ export default function App() {
 
   // Verifica se há uma sessão ativa ao carregar a página
   useEffect(() => {
-    // Verifica se é admin
-    const adminStatus =
-      localStorage.getItem("isAdmin") === "true";
+    const adminStatus = localStorage.getItem("isAdmin") === "true";
+    const loggedStatus = localStorage.getItem("isLoggedIn") === "true";
+
     setIsAdmin(adminStatus);
-
-    // Cria uma única instância do Supabase client
-    const supabase = createClient();
-
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (session) {
-        setIsLoggedIn(true);
-        console.log(
-          "Sessão ativa detectada:",
-          session.user.email,
-        );
-      }
-    };
-
-    checkSession();
-
-    // Escuta mudanças na autenticação usando a mesma instância
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setIsLoggedIn(true);
-        console.log("Usuário autenticado:", session.user.email);
-      } else {
-        setIsLoggedIn(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    setIsLoggedIn(loggedStatus);
   }, []);
 
   const navigateToCreateProject = () => {
@@ -120,11 +85,15 @@ export default function App() {
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
+    localStorage.setItem("isLoggedIn", "true");
     setCurrentPage("home");
   };
 
   const handleAdminLoginSuccess = () => {
     setIsAdmin(true);
+    setIsLoggedIn(true);
+    localStorage.setItem("isAdmin", "true");
+    localStorage.setItem("isLoggedIn", "true");
     setCurrentPage("admin-dashboard");
   };
 
@@ -136,6 +105,10 @@ export default function App() {
     setIsLoggedIn(false);
     setIsAdmin(false);
     localStorage.removeItem("isAdmin");
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("projeplac_current_author");
+    localStorage.removeItem("projeplac_current_user_email");
+    localStorage.removeItem("projeplac_current_user_type");
   };
 
   return (
